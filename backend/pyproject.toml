@@ -1,0 +1,15 @@
+[project]
+name = "genaiagent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "ag-ui-protocol>=0.1.9",
+    "fastapi>=0.119.0",
+    "jsonpatch>=1.33",
+    "oci[adk]>=2.161.0",
+    "python-dotenv>=1.1.1",
+    "rich>=14.2.0",
+    "uvicorn>=0.37.0",
+]
