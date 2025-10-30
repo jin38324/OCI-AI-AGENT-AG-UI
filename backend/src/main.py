@@ -275,7 +275,7 @@ async def event_generator(encoder, response,input_data,message_id,state,previous
                 elif trace.get("traceType") == "ERROR_TRACE":
                     trace_step["tag"] = "Error"
                     trace_step["traceDetails"] = [
-                        {"key":"error_message","value": trace.get("error_message")},
+                        {"key":"error_message","value": trace.get("errorMessage")},
                         {"key":"code","value": trace.get("code")}
                     ]
                     state["steps"].append(trace_step)
