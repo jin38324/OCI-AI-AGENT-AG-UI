@@ -113,44 +113,45 @@ async def reponse_loop(user_message, encoder,input_data):
 
 
     # # Send initial state snapshot
-    state = {"session_id": session_id,"steps": []}
+    state = {
+        "session_id": session_id,
+        "steps": [
+            {   
+                "key":"",
+                "status": "pending",
+                "tag": "Planning",
+                "traceDetails": [
+                    {"key":"input","value": user_message}
+                ]
+            }
+            ]
+            }
     event = StateSnapshotEvent(
         type=EventType.STATE_SNAPSHOT,
         snapshot=state
         )
     yield encoder.encode(event)
 
-    previous_state = copy.deepcopy(state)
-    state["steps"].append(
-        {   
-            "key":"",
-            "status": "pending",
-            "tag": "Planning",
-            "traceDetails": [
-                {"key":"input","value": user_message}
-            ]
-        }
-    )
-    yield send_state_events(previous_state, state, encoder)
-    previous_state = copy.deepcopy(state)
-
+    previous_state = None
     is_finish = False
     tool_performed_actions = []
     # loop until finish
     while not is_finish:
+        print("\n\nCALL API: ",user_message)
         response = await get_response(genai_agent_runtime_client,
                                     user_message,
                                     session_id,
                                     streaming=True,
-                                    performed_actions=tool_performed_actions)
-        # rwa_response = RawResponse(raw_data=response)
-        # run_response = RunResponse(session_id=session_id, data=response, raw_responses=[rwa_response])
+                                    performed_actions=tool_performed_actions
+                                    )
+        print(response.request.body)
 
         async for chunk in event_generator(encoder, response,input_data,message_id,state,previous_state):
-            if "required_actions" in chunk:
-                tool_performed_actions.append(chunk["required_actions"])
-            elif "run_finished" in chunk:
-                is_finish = True
+            if isinstance(chunk,dict):
+                if chunk.get("required_actions"):
+                    tool_performed_actions = [chunk.get("required_actions")]
+                elif chunk.get("run_finished"):
+                    is_finish = True
             else:
                 yield chunk
 
@@ -228,25 +229,16 @@ async def event_generator(encoder, response,input_data,message_id,state,previous
                     ]
 
                     # update first step
-                    if len(state["steps"]) == 1 and state["steps"][0]["key"] == "":
-                        state["steps"] = [trace_step]
-                    else:
-                        state["steps"].append(trace_step)
-                        
+                    if len(state["steps"]) == 1 and state["steps"][0]["status"] == "pending":
+                        state["steps"] = []                        
                     
                 elif trace.get("traceType") == "TOOL_INVOCATION_TRACE":
-                    # if tool_items:
-                    #     for item in tool_items:
-                    #         if item.id == trace["toolId"]:
-                    #             msg = f"`{item.tool_config.tool_config_type}` - `{item.display_name}`"
                     trace_step["tag"] = "Tool Invocation"
                     trace_step["traceDetails"] = [
                         {"key":"tool_id","value": trace.get("toolId")},
                         {"key":"tool_name","value": trace.get("toolName")},
                         {"key":"invocation_details","value": to_text(trace.get("invocationDetails"))}
                     ]
-                    
-                    state["steps"].append(trace_step)
 
                 elif trace.get("traceType") == "RETRIEVAL_TRACE":
                     trace_step["tag"] = "Retrieval"
@@ -254,7 +246,6 @@ async def event_generator(encoder, response,input_data,message_id,state,previous
                         {"key":"retrievalInput","value": trace.get("retrievalInput")},
                         {"key":"citations","value": to_text(trace.get("citations"))}
                     ]
-                    state["steps"].append(trace_step)
                     
                 elif trace.get("traceType") == "GENERATION_TRACE":
                     trace_step["tag"] = "Generation"
@@ -262,7 +253,6 @@ async def event_generator(encoder, response,input_data,message_id,state,previous
                         {"key":"input","value": trace.get("input")},
                         {"key":"generation","value": trace.get("generation")}
                     ]
-                    state["steps"].append(trace_step)
                     
                 elif trace.get("traceType") == "EXECUTION_TRACE":
                     trace_step["tag"] = "Execution"
@@ -270,7 +260,6 @@ async def event_generator(encoder, response,input_data,message_id,state,previous
                         {"key":"input","value": trace.get("input")},
                         {"key":"output","value": trace.get("output")}
                     ]
-                    state["steps"].append(trace_step)
                     
                 elif trace.get("traceType") == "ERROR_TRACE":
                     trace_step["tag"] = "Error"
@@ -278,14 +267,13 @@ async def event_generator(encoder, response,input_data,message_id,state,previous
                         {"key":"error_message","value": trace.get("errorMessage")},
                         {"key":"code","value": trace.get("code")}
                     ]
-                    state["steps"].append(trace_step)
                 else:
                     trace_step["tag"] = trace.get("traceType")
                     trace_step["traceDetails"] = [
                         {"key":"traceType","value": trace.get("traceType")}
                     ]
-                    state["steps"].append(trace_step)
-
+                # append trace step to state and yield state events
+                state["steps"].append(trace_step)
                 yield send_state_events(previous_state, state, encoder)
                 previous_state = copy.deepcopy(state)
 
@@ -298,7 +286,7 @@ async def event_generator(encoder, response,input_data,message_id,state,previous
                 functionCall = each["functionCall"]
                 function_name = functionCall["name"]
                 function_arguments = json.loads(functionCall["arguments"])
-                print(actionId, function_name, function_arguments)
+                print("function call: ",actionId, function_name, function_arguments)
                 step = {
                         "key": actionId,
                         "tag": "Function Call",
@@ -308,13 +296,14 @@ async def event_generator(encoder, response,input_data,message_id,state,previous
                             {"key":"function_arguments","value": "{}" if not function_arguments else to_text(function_arguments)}
                         ]
                     }
+                # append trace step to state and yield state events
                 state["steps"].append(step)
                 yield send_state_events(previous_state, state, encoder)
                 previous_state = copy.deepcopy(state)
 
-
+                # perform function call
                 function_call_output = AGENT_TOOLS[function_name](**function_arguments)
-                print(function_call_output)
+                print("function call output: ",function_call_output)
 
                 # update last step by key
                 for step in state["steps"]:
@@ -324,13 +313,14 @@ async def event_generator(encoder, response,input_data,message_id,state,previous
                             {"key":"function_result","value": to_text(function_call_output)}
                         )
                         break
+                # yield state events
                 yield send_state_events(previous_state, state, encoder)
                 previous_state = copy.deepcopy(state)
 
                 performed_action = FunctionCallingPerformedAction(
                         action_id = actionId,
                         performed_action_type = "FUNCTION_CALLING_PERFORMED_ACTION",
-                        function_call_output = function_call_output
+                        function_call_output = to_text(function_call_output)
                     )
                 yield {"required_actions": performed_action}
         
@@ -369,7 +359,7 @@ def send_state_events(previous_state, state, encoder):
     # print("="*20,"state:\n",state)
     # Generate JSON patch from previous state to current state
     patch = jsonpatch.make_patch(previous_state, state)
-    # print("patch","*"*20,"\n",patch.patch)
+    print("patch ","*"*20,"\n",patch.patch,"\npatch ","*"*20)
     event = StateDeltaEvent(
         type=EventType.STATE_DELTA,
         delta=patch.patch
@@ -401,10 +391,6 @@ def to_text(data: dict | str | list | int | float | bool) -> str:
         try:
             return json.dumps(data,ensure_ascii=False)
         except:
-            print("-"*50)
-            print("Failed to serialize data to JSON")
-            print(str(data))
-            print("-"*50)
             return str(data)
     elif isinstance(data, (int, float, bool)):
         return str(data)
@@ -412,10 +398,6 @@ def to_text(data: dict | str | list | int | float | bool) -> str:
         try:
             return json.dumps(json.loads(data),ensure_ascii=False)
         except:
-            print("-"*50)
-            print("Failed to parse data as JSON")          
-            print(str(data))
-            print("-"*50)
             return data
     else:
         return str(data)

@@ -206,27 +206,7 @@ const Chat = () => {
                                         </div>
 
                                         {/* Step Content */}
-                                        <div className="flex-1 min-w-0">
-                                            {/*
-                      <div
-                        data-testid="task-step-text"
-                        className={`font-semibold transition-all duration-300 text-sm ${
-                          isCompleted
-                            ? theme === "dark"
-                              ? "text-green-300"
-                              : "text-green-700"
-                            : isCurrentPending
-                              ? theme === "dark"
-                                ? "text-blue-300 text-base"
-                                : "text-blue-700 text-base"
-                              : theme === "dark"
-                                ? "text-slate-400"
-                                : "text-gray-500"
-                        }`}
-                      >
-                        {step.description}
-                      </div>
-                      */}
+                                        <div className="flex-1 min-w-0">   
                                             <div
                                                 data-testid="task-step-container"
                                                 className="rounded-lg p-3 mb-3 transition-all duration-300"
@@ -282,6 +262,11 @@ const Chat = () => {
                                                                     {step.usage.outputTokenCount && <span className="min-w-[100px]"><strong>{step.usage.outputTokenCount}</strong> tokens</span>}
                                                                     {step.usage.outputCharCount && <span><strong>{step.usage.outputCharCount}</strong> characters</span>}
                                                                 </div>
+                                                                {step.elapsedTime && (
+                                                                    <>
+                                                                        <span className="font-semibold">Elapsed Time:</span><span><strong>{step.elapsedTime}</strong> seconds</span>
+                                                                    </>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     )}
@@ -346,13 +331,14 @@ const Chat = () => {
                             message: "What is Exadata?",
                         },
                         {
-                            title: "Function Tool: Get user information by user_id",
-                            message: "Get information about a user by user_id=1",
-                        },
-                        {
-                            title: "Function Tool: Get organization information by org_id",
+                            title: "Single Function Tool: Get organization information by org_id",
                             message: "Get information about an organization by org_id=1",
                         },
+                        {
+                            title: "Multiple Function Tool: Get user information by user_id",
+                            message: "Get information about a user by user_id=1",
+                        },
+                        
                         
                     ]}
                 />

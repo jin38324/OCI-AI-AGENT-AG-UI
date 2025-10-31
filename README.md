@@ -62,8 +62,12 @@ Frameworks:
         <img src="./docs/rag_agent.png" alt="RAG Agent" height="400">
       </td>
       <td align="center">
-        <strong>Tool Agent</strong><br/>
-        <img src="./docs/tool_agent.png" alt="Tool Agent" height="400">
+        <strong>Single Function Tool Agent</strong><br/>
+        <img src="./docs/single_tool_agent.png" alt="Tool Agent" height="400">
+      </td>
+      <td align="center">
+        <strong>Multiple Function Tool Agent</strong><br/>
+        <img src="./docs/multi_tool_agent.png" alt="Tool Agent" height="400">
       </td>
     </tr>
   </table>
