@@ -280,49 +280,53 @@ async def event_generator(encoder, response,input_data,message_id,state,previous
         # Function call 
         elif data.get("requiredActions"):
             requiredActions = data["requiredActions"]
-            tool_performed_actions = []
             for each in requiredActions:
-                actionId = each["actionId"]
-                functionCall = each["functionCall"]
-                function_name = functionCall["name"]
-                function_arguments = json.loads(functionCall["arguments"])
-                print("function call: ",actionId, function_name, function_arguments)
-                step = {
-                        "key": actionId,
-                        "tag": "Function Call",
-                        "status": "pending",
-                        "traceDetails": [
-                            {"key":"function_name","value": to_text(function_name)},
-                            {"key":"function_arguments","value": "{}" if not function_arguments else to_text(function_arguments)}
-                        ]
-                    }
-                # append trace step to state and yield state events
-                state["steps"].append(step)
-                yield send_state_events(previous_state, state, encoder)
-                previous_state = copy.deepcopy(state)
+                if each.get("requiredActionType") == "FUNCTION_CALLING_REQUIRED_ACTION":
+                    actionId = each["actionId"]
+                    functionCall = each["functionCall"]
+                    function_name = functionCall["name"]
+                    function_arguments = json.loads(functionCall["arguments"])
+                    print("function call: ",actionId, function_name, function_arguments)
+                    step = {
+                            "key": actionId,
+                            "tag": "Function Call",
+                            "status": "pending",
+                            "traceDetails": [
+                                {"key":"function_name","value": to_text(function_name)},
+                                {"key":"function_arguments","value": "{}" if not function_arguments else to_text(function_arguments)}
+                            ]
+                        }
+                    # append trace step to state and yield state events
+                    state["steps"].append(step)
+                    yield send_state_events(previous_state, state, encoder)
+                    previous_state = copy.deepcopy(state)
 
-                # perform function call
-                function_call_output = AGENT_TOOLS[function_name](**function_arguments)
-                print("function call output: ",function_call_output)
+                    # perform function call
+                    function_call_output = AGENT_TOOLS[function_name](**function_arguments)
+                    print("function call output: ",function_call_output)
 
-                # update last step by key
-                for step in state["steps"]:
-                    if step["key"] == actionId:
-                        step["status"] = "completed"
-                        step["traceDetails"].append(
-                            {"key":"function_result","value": to_text(function_call_output)}
+                    # update last step by key
+                    for step in state["steps"]:
+                        if step["key"] == actionId:
+                            step["status"] = "completed"
+                            step["traceDetails"].append(
+                                {"key":"function_result","value": to_text(function_call_output)}
+                            )
+                            break
+                    # yield state events
+                    yield send_state_events(previous_state, state, encoder)
+                    previous_state = copy.deepcopy(state)
+
+                    performed_action = FunctionCallingPerformedAction(
+                            action_id = actionId,
+                            performed_action_type = "FUNCTION_CALLING_PERFORMED_ACTION",
+                            function_call_output = to_text(function_call_output)
                         )
-                        break
-                # yield state events
-                yield send_state_events(previous_state, state, encoder)
-                previous_state = copy.deepcopy(state)
+                    yield {"required_actions": performed_action}
 
-                performed_action = FunctionCallingPerformedAction(
-                        action_id = actionId,
-                        performed_action_type = "FUNCTION_CALLING_PERFORMED_ACTION",
-                        function_call_output = to_text(function_call_output)
-                    )
-                yield {"required_actions": performed_action}
+                elif each.get("requiredActionType") == "HUMAN_APPROVAL_REQUIRED_ACTION":
+                    pass
+                    
         
         # Display answer
         elif data.get('message'):
