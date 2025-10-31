@@ -325,7 +325,7 @@ async def event_generator(encoder, response,input_data,message_id,state,previous
                     yield {"required_actions": performed_action}
 
                 elif each.get("requiredActionType") == "HUMAN_APPROVAL_REQUIRED_ACTION":
-                    pass
+                    print("="*20,"\nWARNING: human approval required action not implemented\n","="*20)
                     
         
         # Display answer
