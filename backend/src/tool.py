@@ -37,7 +37,7 @@ def return_tools() -> list:
             description="Use this tool to answer questions about Oracle Cloud Infrastructure (OCI).",
             knowledge_base_ids=[knowledge_base_id],
             )
-    tool_list.append("rag_tool")
+        tool_list.append("rag_tool")
     print(tool_list)
     return tool_list
  
