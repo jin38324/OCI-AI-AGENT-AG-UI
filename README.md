@@ -36,7 +36,7 @@ Frameworks:
 
 1. Set up environment variables:
    ```bash
-   cp backend/src/.env.example backend/src/.env
+   cp backend/src/env.example backend/src/.env
    ```
    Update the environment variables in `backend/src/.env` with your own values.
 
@@ -51,6 +51,15 @@ Frameworks:
    uv run src/main.py
    ```
    The API will be available at `http://localhost:8008`
+
+### Configure the Agent using `ADK`
+
+1. Configure the agent 
+
+```
+cd backend
+python src/adk.py
+```
 
 ## Screen Shots
 
